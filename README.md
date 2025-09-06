@@ -1,4 +1,4 @@
-# Visual-Inertial_Odometry
+# Visual-Inertial-Odometry
 VIO algorithm using stereo camera and IMU data within ROS2 environment.
 
 ## Workflow
