@@ -9,7 +9,7 @@ This project follows a 5-step workflow: Data Input, Initialization, Stereo VIO, 
 ![flowchart](assets/VINS-FUSION-FLOWCHART.jpg)
 
 ## What it does
-Benchmarks the VINS-Fusion algorithm for high-accuracy state estimation using public autonomous driving datasets.
+Augmenting the VINS-Fusion algorithm with learning-based Feature Selection and Adaptive NMS
 
 ## How I built
 I implemented a five-step ROS2 pipeline based on VINS-Fusion to process sensor data and generate an optimized trajectory for evaluation.
