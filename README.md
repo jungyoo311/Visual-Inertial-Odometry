@@ -1,5 +1,6 @@
 # Visual-Inertial-Odometry
-VIO algorithm using stereo camera and IMU data within ROS2 environment.
+## What it does
+Augmenting the VINS-Fusion algorithm with learning-based Feature Selection and Adaptive NMS
 
 ## Workflow
 This project follows a 5-step workflow: Data Input, Initialization, Stereo VIO, Loop Closure, and Global Optimization.
@@ -8,8 +9,7 @@ This project follows a 5-step workflow: Data Input, Initialization, Stereo VIO, 
 ## System Architecture
 ![flowchart](assets/VINS-FUSION-FLOWCHART.jpg)
 
-## What it does
-Augmenting the VINS-Fusion algorithm with learning-based Feature Selection and Adaptive NMS
+
 
 ## How I built
 I implemented a five-step ROS2 pipeline based on VINS-Fusion to process sensor data and generate an optimized trajectory for evaluation.
