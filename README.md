@@ -4,6 +4,7 @@ VIO algorithm using stereo camera and IMU data within ROS2 environment.
 ## Workflow
 This project follows a 5-step workflow: Data Input, Initialization, Stereo VIO, Loop Closure, and Global Optimization.
 ![workflow](assets/workflow_flowchart.jpg)
+![flowchart](assets/VINS-FUSION-FLOWCHART.jpg)
 
 ## What it does
 Benchmarks the VINS-Fusion algorithm for high-accuracy state estimation using public autonomous driving datasets.
