@@ -31,12 +31,12 @@ class VioNode : public rclcpp::Node
          * @brief Process a synchronized set of IMU and image measurements
         */
         // extract two images with the same t from two different topics
-        void image_syncer();
+        void image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_msg, const sensor_msgs::msg::Image::ConstSharedPtr& cam1_msg);
     private:
         //ROS subscribers, publishers
-        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_cam0;
-        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_cam1;
         rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu0;
+        message_filters::Subscriber<sensor_msgs::msg::Image> sub_cam0;
+        message_filters::Subscriber<sensor_msgs::msg::Image> sub_cam1;
 
         // vio
         // rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub;
@@ -56,18 +56,12 @@ class VioNode : public rclcpp::Node
         queue<pair<double, Eigen::Vector3d>> gyrBuf;
 
         rclcpp::TimerBase::SharedPtr timer_;
-        /**
-         * @brief callback for incoming img msgs
-        */
-        void image0_callback(const sensor_msgs::msg::Image::SharedPtr msg);
-        void image1_callback(const sensor_msgs::msg::Image::SharedPtr msg);
+
         /**
          * @brief callback for incoming imu msgs
         */
         void imu0_callback(const sensor_msgs::msg::Imu::SharedPtr msg);
-        cv::Mat getImageFromMsg(sensor_msgs::msg::Image::SharedPtr &img_msg);
         
-        void publisher_timer_callback();
 };
 
 #endif
