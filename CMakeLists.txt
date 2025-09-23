@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(hands_on_kitti)
+project(vio_node)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -20,10 +20,26 @@ find_package(geometry_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(message_filters REQUIRED)
-# fix this
-add_executable(depth_map src/depthMap.cpp) 
+find_package(Eigen3 REQUIRED)
 
-ament_target_dependencies(depth_map
+include_directories(
+  include
+  src
+  ${Eigen3_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+)
+
+add_library(vio_lib
+  src/core/VioEstimator.cpp
+)
+target_link_libraries(vio_lib PUBLIC
+  ${OpenCV_LIBS}
+  ${OpenCV_LIBRARIES}
+  Eigen3::Eigen
+)
+add_executable(vio_node src/VioNode.cpp) 
+
+ament_target_dependencies(vio_node
   rclcpp
   std_msgs
   ament_index_cpp
@@ -31,26 +47,22 @@ ament_target_dependencies(depth_map
   cv_bridge
   message_filters
   rosbag2_cpp
+  geometry_msgs
+
 )
-include_directories(
-  include
-  ${OpenCV_INCLUDE_DIRS}
+
+target_link_libraries(vio_node
+  vio_lib
 )
-# fix this
-target_link_libraries(depth_map
-  ${OpenCV_LIBS}
-)
-# fix this
+
 install(TARGETS
-  # reader
-  depth_map
+  vio_node
   DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}/)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  
   set(ament_cmake_copyright_FOUND TRUE)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()

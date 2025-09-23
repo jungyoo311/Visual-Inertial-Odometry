@@ -12,8 +12,8 @@ def generate_launch_description():
     #     output='screen',
     # )
     vio_node = Node(
-        package="vio",
-        executable="vio", # should match cmakelist txt file
+        package="vio_node",
+        executable="vio_node", # should match cmakelist txt file
         name="vio_node",
         output='screen',
     )
