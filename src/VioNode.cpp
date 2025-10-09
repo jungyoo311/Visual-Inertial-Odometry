@@ -9,6 +9,7 @@
 #define IMAGE1_TOPIC "/cam1/image_raw"
 #define IMU_TOPIC "/imu0"
 #include "../include/vio_node/VioNode.hpp"
+//0923: 
 //0922: image_syncer() done but needs to be fixed. manual threading->message_filters,
 //sync_thread and timer_ could try to access the buffers at the exact same time, leading to unpredictable behavior.
 // USE message_filters lib for synchronization. 
@@ -31,6 +32,7 @@ void VioNode::imu0_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     Eigen::Vector3d gyr(ax, ay, az);
 
     // call vio estiamtor class instance using imu input member function here
+    estimator.inputIMU(t, acc, gyr);
 }
 
 /**
@@ -41,17 +43,36 @@ void VioNode::imu0_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 void VioNode::image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_msg, const sensor_msgs::msg::Image::ConstSharedPtr& cam1_msg)
 {
     try {
+        
         cv_bridge::CvImagePtr cam0_ptr = cv_bridge::toCvCopy(cam0_msg, sensor_msgs::image_encodings::MONO8);
         cv_bridge::CvImagePtr cam1_ptr = cv_bridge::toCvCopy(cam1_msg, sensor_msgs::image_encodings::MONO8);
         cv::Mat img0, img1;
         img0 = cam0_ptr->image;
         img1 = cam1_ptr->image;
-        img_pub->publish(*cam1_msg);
+        time = cam0_msg->header.stamp.sec + cam0_msg->header.stamp.nanosec * (1e-9);
+        cv::Mat visualized_image;
+        stopwatch.start_time();       
+        visualized_image = estimator.inputImage(time, img0, img1); // assignment to 
+        elasped_time = stopwatch.end_time();
+        double processing_time_s = elasped_time / 1000.0;
+        double processing_hz = 1.0 / processing_time_s;
+        RCLCPP_INFO(this->get_logger(), 
+                    "VIO Image Processing Time: %.2f ms (%.2f Hz)", 
+                    elasped_time,
+                    processing_hz);
+        cv_bridge::CvImage out_msg;
+        out_msg.header = cam0_msg->header;
+        out_msg.encoding = sensor_msgs::image_encodings::MONO8;
+        out_msg.image = visualized_image;
+        
+        // img_pub->publish(*cam1_msg);
+        img_pub->publish(*out_msg.toImageMsg());
 
     } catch(const std::exception& e){
         RCLCPP_INFO(this->get_logger(), "syncing error %s", e.what());
     }
 }
+
 // constructor
 VioNode::VioNode() : Node("VIO_estimator")
 {
@@ -70,6 +91,7 @@ VioNode::VioNode() : Node("VIO_estimator")
     
     img_pub = this->create_publisher<sensor_msgs::msg::Image>("vio/pose", 10);
 }
+
 // deallocate
 VioNode::~VioNode(){};
 int main(int argc, char ** argv)

@@ -16,3 +16,8 @@ I implemented a five-step ROS2 pipeline based on VINS-Fusion to process sensor d
 
 ## What I learned
 I learned the fundamentals of visual-inertial sensor fusion, the importance of loop closure in reducing drift, and how to benchmark VIO systems.
+
+## Measure ROS2 Bag play topic freq rate
+`
+ros2 topic hz /cam0/image_raw
+`

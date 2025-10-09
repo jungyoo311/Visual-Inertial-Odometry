@@ -31,6 +31,7 @@ include_directories(
 
 add_library(vio_lib
   src/core/VioEstimator.cpp
+  src/core/FeatureTracker.cpp
 )
 target_link_libraries(vio_lib PUBLIC
   ${OpenCV_LIBS}
