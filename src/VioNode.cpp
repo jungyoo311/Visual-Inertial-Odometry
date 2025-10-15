@@ -52,7 +52,7 @@ void VioNode::image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_m
         time = cam0_msg->header.stamp.sec + cam0_msg->header.stamp.nanosec * (1e-9);
         cv::Mat visualized_image;
         stopwatch.start_time();       
-        visualized_image = estimator.inputImage(time, img0, img1); // assignment to 
+        visualized_image = estimator.inputImage(time, img0, img1);
         elasped_time = stopwatch.end_time();
         double processing_time_s = elasped_time / 1000.0;
         double processing_hz = 1.0 / processing_time_s;
@@ -62,7 +62,7 @@ void VioNode::image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_m
                     processing_hz);
         cv_bridge::CvImage out_msg;
         out_msg.header = cam0_msg->header;
-        out_msg.encoding = sensor_msgs::image_encodings::MONO8;
+        out_msg.encoding = sensor_msgs::image_encodings::BGR8; //MONO8
         out_msg.image = visualized_image;
         
         // img_pub->publish(*cam1_msg);

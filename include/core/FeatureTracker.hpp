@@ -20,12 +20,11 @@ class FeatureTracker
      */
         FeatureTracker();
         ~FeatureTracker();
-        struct FeatureObject
-        {
-            cv::Point2f pt_left;
-            cv::Point2f pt_right;
-        };
-        using TrackData = std::map<int, FeatureObject>;
+        
+        /**
+         * @brief Maintain Feature Quality and Distribution. Prioritizes keeping features that have been tracked for a long time.
+         *  
+         */
         void setMask(const cv::Mat& image);
         cv::Mat detectAndAdd(const cv::Mat& image);
         double distance(cv::Point2f &pt1, cv::Point2f &pt2);
@@ -34,29 +33,27 @@ class FeatureTracker
          * @return a structured list of all features currently being tracked
          */
         cv::Mat trackImage(const double time, const cv::Mat& new_image_left, const cv::Mat& new_image_right);
-        /**
-         * @brief Find and Add new FeaturePoints in areas where it weren't tracking yet.
-         *          Assign new unique ID and add them to the tracker's list of managed pts.
-         * @return add new features to the m_tracked_features, increment the m_next_feature_id counter 
-         *          for each new feature added.
-         */
-        
 
     private:
-        std::vector<cv::Point2f> prev_pts, curr_pts;
-        std::map<int, FeatureObject> m_tracked_features; // holds feature currently being tracked.
-        std::map<int, FeatureObject> new_feature_tracked;
-        int m_next_feature_id;
-        int MAX_FEATURES; // the max number of features want to track in total.
+        struct FeatureObject // entire struct is the data-type
+        {
+            std::vector<cv::Point2f> prev_pts, curr_pts;
+            std::vector<int> track_cnt; // quality level
+            std::vector<int> ids;
+            bool prev_consistent;
+            bool curr_consistent;
+        };
+        FeatureObject obj;
+        // std::map<int, FeatureObject> m_tracked_features; // holds feature currently being tracked.
+        // int m_next_feature_id;
+        int max_cnt = 150;
+        double minDistance = 30; //min possible Euclidean distance between the returned corners
         double prev_time;
         double curr_time;
         bool hasPrediction;
         cv::Mat m_mask;
-        
-        
-        //Testing command
+        int n_id = 0;
 };
 #endif
 
-// tracker 의 가장 기본 적인 구성요소 + 그걸 짜기 위해선 뭐가 필요? + member function이 뭐가 필요? + 내가 짜보자.
-// 하나의 메서드 len(function) < 100
+// Each methods should be: len(function) < 100

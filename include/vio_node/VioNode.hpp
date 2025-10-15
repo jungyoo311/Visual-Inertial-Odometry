@@ -51,6 +51,8 @@ class VioNode : public rclcpp::Node
         cv::Mat disparityMap;
         cv::Mat depthMap;
 
+        StopWatch stopwatch;
+        double elasped_time;
         double time;
         // a buffer to hold incoming sensor msgs from ROS2 subscribers
         queue<sensor_msgs::msg::Image::SharedPtr> img0_buf;
@@ -59,8 +61,7 @@ class VioNode : public rclcpp::Node
         std::mutex m_buf;
         queue<pair<double, Eigen::Vector3d>> accBuf;
         queue<pair<double, Eigen::Vector3d>> gyrBuf;
-        StopWatch stopwatch;
-        double elasped_time;
+        
 
         rclcpp::TimerBase::SharedPtr timer_;
 
