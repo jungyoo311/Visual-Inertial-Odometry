@@ -34,7 +34,9 @@ class VioNode : public rclcpp::Node
          * @brief Process a synchronized set of IMU and image measurements
         */
         // extract two images with the same t from two different topics
-        void image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_msg, const sensor_msgs::msg::Image::ConstSharedPtr& cam1_msg);
+        void stereo_img_cb(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_msg, const sensor_msgs::msg::Image::ConstSharedPtr& cam1_msg);
+        void tracker_init();
+
     private:
         //ROS subscribers, publishers
         rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu0;
@@ -53,7 +55,8 @@ class VioNode : public rclcpp::Node
         VioEstimator estimator;
         cv::Mat disparityMap;
         cv::Mat depthMap;
-
+        bool is_tracker_initialized = false;
+        
         StopWatch stopwatch;
         double elasped_time;
         double time;

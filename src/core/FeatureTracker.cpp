@@ -138,12 +138,15 @@ void FeatureTracker::setMask(const cv::Mat& image)
     // stpe 5: Replace the old feature map with the curated "keeper" map
 
 }
+
 void FeatureTracker::detectAndAdd(const cv::Mat& image, cv::Mat& BGR_img)
 {
     if (max_cnt > obj.curr_pts.size())
     {
         std::vector<cv::Point2f> corners;
         double qualityLevel = 0.01;
+
+        // Feature detection using Shi-Tomasi corner detector
         cv::goodFeaturesToTrack(
             image, //inputArray image
             corners, // outputArray corners

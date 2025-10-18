@@ -17,6 +17,33 @@
 //0921: finished setup. now subscribe from ros2 node and publish on the rviz for input-output check
 
 VioEstimator estimator;
+
+// constructor
+VioNode::VioNode() : Node("VIO_estimator")
+{
+    // pre-integration means integrate imu0 first?
+    sub_imu0 = this -> create_subscription<sensor_msgs::msg::Imu>(IMU_TOPIC, rclcpp::QoS(rclcpp::KeepLast(2000)), 
+                                                                    std::bind(&VioNode::imu0_callback, this, std::placeholders::_1));
+    rclcpp::QoS qos = rclcpp::QoS(rclcpp::KeepLast(100));
+    sub_cam0.subscribe(this, IMAGE0_TOPIC, qos.get_rmw_qos_profile()); // Frequency: 30 Hz
+    sub_cam1.subscribe(this, IMAGE1_TOPIC, qos.get_rmw_qos_profile()); // Frequency: 30 Hz
+    uint32_t q_size = 10;
+    //initialize synchronizer - Policy: Approximate time 3ms
+    sync = std::make_shared<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image>>>(
+        message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image>(q_size), sub_cam0, sub_cam1);
+    sync->setAgePenalty(0.003);
+    sync->registerCallback(std::bind(&VioNode::image_syncer, this, std::placeholders::_1, std::placeholders::_2));
+    
+    img_pub = this->create_publisher<sensor_msgs::msg::Image>("vio/pose", 10);
+
+    blue_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/blue_dots", 10);
+    green_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/green_dots", 10);
+    red_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/red_dots", 10);
+}
+
+// deallocate
+VioNode::~VioNode(){};
+
 void VioNode::imu0_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
     double t = msg->header.stamp.sec + msg->header.stamp.nanosec * (1e-9);
@@ -40,7 +67,7 @@ void VioNode::imu0_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
  * @details 
  * 
  */
-void VioNode::image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_msg, const sensor_msgs::msg::Image::ConstSharedPtr& cam1_msg)
+void VioNode::stereo_img_cb(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_msg, const sensor_msgs::msg::Image::ConstSharedPtr& cam1_msg)
 {
     try {
         
@@ -49,6 +76,13 @@ void VioNode::image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_m
         cv::Mat img0, img1;
         img0 = cam0_ptr->image;
         img1 = cam1_ptr->image;
+
+        // Re-publish synchronized images
+        // e.g. ros2 topic hz /synced_image0
+        // Measuring wall time for function execution: this->get_time()->now() -> end - start
+        
+        // Img sync
+        rclcpp::Time time = rclcpp;
         time = cam0_msg->header.stamp.sec + cam0_msg->header.stamp.nanosec * (1e-9);
         cv::Mat visualized_image;
         stopwatch.start_time();       
@@ -86,36 +120,4 @@ void VioNode::image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_m
     }
 }
 
-// constructor
-VioNode::VioNode() : Node("VIO_estimator")
-{
-    // pre-integration means integrate imu0 first?
-    sub_imu0 = this -> create_subscription<sensor_msgs::msg::Imu>(IMU_TOPIC, rclcpp::QoS(rclcpp::KeepLast(2000)), 
-                                                                    std::bind(&VioNode::imu0_callback, this, std::placeholders::_1));
-    rclcpp::QoS qos = rclcpp::QoS(rclcpp::KeepLast(100));
-    sub_cam0.subscribe(this, IMAGE0_TOPIC, qos.get_rmw_qos_profile());
-    sub_cam1.subscribe(this, IMAGE1_TOPIC, qos.get_rmw_qos_profile());
-    uint32_t q_size = 10;
-    //initialize synchronizer - Policy: Approximate time 3ms
-    sync = std::make_shared<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image>>>(
-        message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image>(q_size), sub_cam0, sub_cam1);
-    sync->setAgePenalty(0.003);
-    sync->registerCallback(std::bind(&VioNode::image_syncer, this, std::placeholders::_1, std::placeholders::_2));
-    
-    img_pub = this->create_publisher<sensor_msgs::msg::Image>("vio/pose", 10);
 
-    blue_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/blue_dots", 10);
-    green_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/green_dots", 10);
-    red_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/red_dots", 10);
-}
-
-// deallocate
-VioNode::~VioNode(){};
-int main(int argc, char ** argv)
-{
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<VioNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
-}
