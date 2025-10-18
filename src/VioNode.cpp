@@ -67,6 +67,19 @@ void VioNode::image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_m
         
         // img_pub->publish(*cam1_msg);
         img_pub->publish(*out_msg.toImageMsg());
+        // publish for RQT PLOT
+        auto stats = estimator.getLastFeatureStats();
+        auto blue_msg = std_msgs::msg::Int32();
+        auto green_msg = std_msgs::msg::Int32();
+        auto red_msg = std_msgs::msg::Int32();
+
+        blue_msg.data = stats.blue_count;
+        green_msg.data = stats.green_count;
+        red_msg.data = stats.red_count;
+
+        blue_dots_pub->publish(blue_msg);
+        green_dots_pub->publish(green_msg);
+        red_dots_pub->publish(red_msg);
 
     } catch(const std::exception& e){
         RCLCPP_INFO(this->get_logger(), "syncing error %s", e.what());
@@ -90,6 +103,10 @@ VioNode::VioNode() : Node("VIO_estimator")
     sync->registerCallback(std::bind(&VioNode::image_syncer, this, std::placeholders::_1, std::placeholders::_2));
     
     img_pub = this->create_publisher<sensor_msgs::msg::Image>("vio/pose", 10);
+
+    blue_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/blue_dots", 10);
+    green_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/green_dots", 10);
+    red_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/red_dots", 10);
 }
 
 // deallocate

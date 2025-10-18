@@ -27,3 +27,12 @@ void VioEstimator::inputIMU(double t, const Eigen::Vector3d &linearAcc, const Ei
     // accBuf.push();
     // gyrBuf.push();
 }
+FeatureTracker::FeatureStats VioEstimator::getLastFeatureStats() const
+{
+    const auto& history = tracker.getStatsHistory();
+    if(history.empty())
+    {
+        return FeatureTracker::FeatureStats();
+    }
+    return history.back();
+}

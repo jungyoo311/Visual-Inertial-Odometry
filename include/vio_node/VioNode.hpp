@@ -14,6 +14,7 @@
 #include <eigen3/Eigen/Dense>
 #include "../include/core/VioEstimator.hpp"
 #include "../utils/measure_time.hpp"
+#include "std_msgs/msg/int32.hpp"
 
 using namespace std;
 
@@ -43,7 +44,9 @@ class VioNode : public rclcpp::Node
         // vio
         // rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub;
         rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr img_pub;
-        
+        rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr blue_dots_pub;
+        rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr green_dots_pub;
+        rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr red_dots_pub;
         // stereo img synchronizer
         std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image>>> sync;
 

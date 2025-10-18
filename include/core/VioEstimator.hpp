@@ -16,6 +16,7 @@ class VioEstimator
         cv::Mat inputImage(double t, const cv::Mat &img0, const cv::Mat &img1);
         void inputIMU(double t, const Eigen::Vector3d &linearAcc, const Eigen::Vector3d &angularVel);
         // void slideWindow();
+        FeatureTracker::FeatureStats getLastFeatureStats() const;
 
     private:
         std::mutex mBuf;

@@ -9,7 +9,7 @@
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <queue>
-
+#include <vector>
 #include "../utils/measure_time.hpp"
 class FeatureTracker
 {
@@ -26,22 +26,29 @@ class FeatureTracker
          *  
          */
         void setMask(const cv::Mat& image);
-        cv::Mat detectAndAdd(const cv::Mat& image);
+        void detectAndAdd(const cv::Mat& image, cv::Mat& BGR_img);
         double distance(cv::Point2f &pt1, cv::Point2f &pt2);
         /**
          * @brief 
          * @return a structured list of all features currently being tracked
          */
         cv::Mat trackImage(const double time, const cv::Mat& new_image_left, const cv::Mat& new_image_right);
+        struct FeatureStats
+        {
+            int blue_count = 0;
+            int green_count = 0;
+            int red_count = 0;
+        };
 
+        const std::vector<FeatureStats>& getStatsHistory() const { return stats_history;}
     private:
         struct FeatureObject // entire struct is the data-type
         {
             std::vector<cv::Point2f> prev_pts, curr_pts;
             std::vector<int> track_cnt; // quality level
             std::vector<int> ids;
-            bool prev_consistent;
-            bool curr_consistent;
+            // std::vector<uchar> status;
+            // std::vector<float> err;
         };
         FeatureObject obj;
         // std::map<int, FeatureObject> m_tracked_features; // holds feature currently being tracked.
@@ -52,7 +59,10 @@ class FeatureTracker
         double curr_time;
         bool hasPrediction;
         cv::Mat m_mask;
+        cv::Mat prev_img;
         int n_id = 0;
+        bool is_first_frame = true;
+        std::vector<FeatureStats> stats_history;
 };
 #endif
 
