@@ -31,14 +31,13 @@ include_directories(
 
 add_library(vio_lib
   src/core/VioEstimator.cpp
-  src/core/FeatureTracker.cpp
 )
 target_link_libraries(vio_lib PUBLIC
   ${OpenCV_LIBS}
   ${OpenCV_LIBRARIES}
   Eigen3::Eigen
 )
-add_executable(vio_node src/VioNode.cpp) 
+add_executable(vio_node src/VioNode.cpp src/VioNode_node.cpp) 
 
 ament_target_dependencies(vio_node
   rclcpp

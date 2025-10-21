@@ -18,23 +18,17 @@
 
 using namespace std;
 
-// shared ptrs to msgs input
-sensor_msgs::msg::Image ImageMsg;
-sensor_msgs::msg::Imu ImuMsg;
-
 class VioNode : public rclcpp::Node
 {
     public:
-        /**
-         * @brief Construct a new VIO Ros node
-        */
+
         VioNode();
         ~VioNode();
         /**
          * @brief Process a synchronized set of IMU and image measurements
         */
         // extract two images with the same t from two different topics
-        void image_syncer(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_msg, const sensor_msgs::msg::Image::ConstSharedPtr& cam1_msg);
+        void img_cb(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_msg, const sensor_msgs::msg::Image::ConstSharedPtr& cam1_msg);
     private:
         //ROS subscribers, publishers
         rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu0;
@@ -64,8 +58,6 @@ class VioNode : public rclcpp::Node
         std::mutex m_buf;
         queue<pair<double, Eigen::Vector3d>> accBuf;
         queue<pair<double, Eigen::Vector3d>> gyrBuf;
-        
-
         rclcpp::TimerBase::SharedPtr timer_;
 
         /**
