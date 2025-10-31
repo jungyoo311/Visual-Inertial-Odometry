@@ -1,9 +1,15 @@
 #include "../include/core/VioEstimator.hpp"
 
-VioEstimator::VioEstimator()
-{
-
-}
+VioEstimator::VioEstimator() :
+    latest_t(0),
+    delta_t(0),
+    pos(Eigen::Vector3d::Zero()),
+    quat(Eigen::Quaterniond::Identity()),
+    vel(Eigen::Vector3d::Zero()),
+    R_t(Eigen::Matrix3d::Identity()),
+    b_a(Eigen::Vector3d::Zero()),
+    b_g(Eigen::Vector3d::Zero())
+{}
 VioEstimator::~VioEstimator(){}
 /**
  * @brief input stereo imgs and calls featureTracker
@@ -165,4 +171,37 @@ VioEstimator::FeatureStats VioEstimator::getLastFeatureStats() const
         return VioEstimator::FeatureStats();
     }
     return history.back();
+}
+
+void VioEstimator::integrateIMU(double t, const Eigen::Vector3d &linearAccel, const Eigen::Vector3d &angularVel)
+{
+    if (!is_imu_initialized)
+    {
+        // first frame processing
+        latest_t = t;
+        is_imu_initialized = true;
+        return;
+    }
+    delta_t = t - latest_t;
+    latest_t = t;
+    
+    Eigen::Vector3d unbiased_gyro = angularVel - b_g;
+    Eigen::Vector3d unbiased_accel = linearAccel - b_a;
+    double angle = unbiased_gyro.norm() * delta_t;
+    Eigen::Vector3d axis = (angle > 1e-9) ? (unbiased_gyro * delta_t / angle) : Eigen::Vector3d(0, 0, 1);
+    Eigen::AngleAxisd angle_axis(angle, axis);
+    Eigen::Quaterniond delta_q(angle_axis);
+    //calculate orientation
+    // quat = quat @ Eigen::Quaterniond::exp(0.5 * (w_t - b_g) * delta_t);
+    quat  = (quat * delta_q).normalized();
+    R_t = quat.toRotationMatrix();
+
+    Eigen::Vector3d a_world = R_t * unbiased_accel - g;
+
+    //calculate position
+    pos = pos + vel*delta_t + 0.5 * a_world * (delta_t) * (delta_t);
+
+    //calculate velocity
+    vel = vel + a_world * delta_t;
+    
 }

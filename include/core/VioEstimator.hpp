@@ -1,12 +1,14 @@
 #ifndef VIOESTIMATOR_HPP
 #define VIOESTIMATOR_HPP
 
+#include <rclcpp/rclcpp.hpp>
 #include <thread>
 #include <queue>
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Geometry>
+#include <eigen3/Eigen/Core>
 #include <opencv2/opencv.hpp>
-
+#include <nav_msgs/msg/odometry.hpp>
 class VioEstimator
 {
     public:
@@ -29,7 +31,14 @@ class VioEstimator
 
         const std::vector<FeatureStats>& getStatsHistory() const { return stats_history;} //getter
         FeatureStats getLastFeatureStats() const;
-
+        // push it to the queue
+        void inputIMU(double t, const Eigen::Vector3d &linearAccel, const Eigen::Vector3d &angularVel);
+        // Euler equation: calculate orientation, velocity, position
+        void integrateIMU(double t, const Eigen::Vector3d &linearAccel, const Eigen::Vector3d &angularVel);
+        //getters
+        Eigen::Vector3d getPosition() const { return pos; }
+        Eigen::Quaterniond getOrientation() const { return quat; }
+        Eigen::Vector3d getVelocity() const { return vel; }
     private:
         int inputImageCnt;
         double prev_time;
@@ -49,6 +58,24 @@ class VioEstimator
         int n_id = 0;
         bool is_first_frame = true;
         std::vector<FeatureStats> stats_history;
+        // usage for imu integration stage 2: imu preintegration
+        // std::queue<Eigen::Vector3d> accBuf;
+        // std::queue<Eigen::Vector3d> gyrBuf;
+        
+        // imu stage 1 integration values
+        Eigen::Vector3d pos;
+        Eigen::Quaterniond quat;
+        Eigen::Vector3d vel;
+        double latest_t;
+        double delta_t;
+        
+        
+        Eigen::Matrix3d R_t;
+        Eigen::Vector3d a_t, b_a, g{0, 0, 9.81};
+        
+        Eigen::Vector3d w_t, b_g;
+        bool is_imu_initialized = false;
+        
 };
 
 #endif

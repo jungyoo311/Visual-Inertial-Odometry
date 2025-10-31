@@ -12,8 +12,10 @@
 
 VioNode::VioNode() : Node("VIO_estimator")
 {
-    // pre-integration means integrate imu0 first?
-    sub_imu0 = this -> create_subscription<sensor_msgs::msg::Imu>(IMU_TOPIC, rclcpp::QoS(rclcpp::KeepLast(2000)), 
+    // imu queue depth 50 seems enough?
+    rclcpp::QoS imu_qos(rclcpp::KeepLast(50));
+    imu_qos.best_effort();
+    sub_imu0 = this -> create_subscription<sensor_msgs::msg::Imu>(IMU_TOPIC, imu_qos, 
                                                                     std::bind(&VioNode::imu0_callback, this, std::placeholders::_1));
     rclcpp::QoS qos = rclcpp::QoS(rclcpp::KeepLast(100));
     sub_cam0.subscribe(this, IMAGE0_TOPIC, qos.get_rmw_qos_profile());
@@ -25,33 +27,82 @@ VioNode::VioNode() : Node("VIO_estimator")
     sync->setAgePenalty(0.003);
     sync->registerCallback(std::bind(&VioNode::img_cb, this, std::placeholders::_1, std::placeholders::_2));
     
+    
     img_pub = this->create_publisher<sensor_msgs::msg::Image>("vio/pose", 10);
 
     blue_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/blue_dots", 10);
     green_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/green_dots", 10);
     red_dots_pub = this->create_publisher<std_msgs::msg::Int32>("vio/stats/red_dots", 10);
+
+    pub_odometry = this->create_publisher<nav_msgs::msg::Odometry>("odometry", 50);
+    tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+
+    // Create a timer to publish odometry at 30Hz (approx 33ms)
+    pub_timer = this->create_wall_timer(std::chrono::milliseconds(33), 
+                                         std::bind(&VioNode::publish_odometry, this));
 }
 VioNode::~VioNode(){};
 
 VioEstimator estimator;
 void VioNode::imu0_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
-    // double t = msg->header.stamp.sec + msg->header.stamp.nanosec * (1e-9);
-    // double dx = msg->linear_acceleration.x;
-    // double dy = msg->linear_acceleration.y;
-    // double dz = msg->linear_acceleration.z;
+    double t = msg->header.stamp.sec + msg->header.stamp.nanosec * (1e-9);
+    double dx = msg->linear_acceleration.x;
+    double dy = msg->linear_acceleration.y;
+    double dz = msg->linear_acceleration.z;
 
-    // double ax = msg->angular_velocity.x;
-    // double ay = msg->angular_velocity.y;
-    // double az = msg->angular_velocity.z;
+    double ax = msg->angular_velocity.x;
+    double ay = msg->angular_velocity.y;
+    double az = msg->angular_velocity.z;
 
-    // Eigen::Vector3d acc(dx, dy, dz);
-    // Eigen::Vector3d gyr(ax, ay, az);
+    Eigen::Vector3d acc(dx, dy, dz);
+    Eigen::Vector3d gyr(ax, ay, az);
 
-    // call vio estiamtor class instance using imu input member function here
-    // estimator.inputIMU(t, acc, gyr);
+    estimator.integrateIMU(t,acc,gyr);
+    
+    return;
 }
+void VioNode::publish_odometry()
+{
+    Eigen::Vector3d pos = estimator.getPosition();
+    Eigen::Quaterniond quat = estimator.getOrientation();
+    Eigen::Vector3d vel = estimator.getVelocity();
 
+    rclcpp::Time now = this->get_clock()->now();
+
+    nav_msgs::msg::Odometry odometry;
+    odometry.header.stamp = now;
+    odometry.header.frame_id = "map";
+    odometry.child_frame_id = "base_link";
+
+    odometry.pose.pose.position.x = pos.x()/1000;
+    odometry.pose.pose.position.y = pos.y()/1000;
+    odometry.pose.pose.position.z = pos.z()/1000;
+    odometry.pose.pose.orientation.x = quat.x();
+    odometry.pose.pose.orientation.y = quat.y();
+    odometry.pose.pose.orientation.z = quat.z();
+    odometry.pose.pose.orientation.w = quat.w();
+    odometry.twist.twist.linear.x = vel.x()/1000;
+    odometry.twist.twist.linear.y = vel.y()/1000;
+    odometry.twist.twist.linear.z = vel.z()/1000;
+
+    pub_odometry->publish(odometry);
+
+    geometry_msgs::msg::TransformStamped t;
+    t.header.stamp = now;
+    t.header.frame_id = "map";
+    t.child_frame_id = "base_link";
+
+    t.transform.translation.x = pos.x();
+    t.transform.translation.y = pos.y();
+    t.transform.translation.z = pos.z();
+    t.transform.rotation.x = quat.x();
+    t.transform.rotation.y = quat.y();
+    t.transform.rotation.z = quat.z();
+    t.transform.rotation.w = quat.w();
+
+    tf_broadcaster->sendTransform(t);
+}
 void VioNode::img_cb(const sensor_msgs::msg::Image::ConstSharedPtr& cam0_msg, const sensor_msgs::msg::Image::ConstSharedPtr& cam1_msg)
 {       
         cv_bridge::CvImagePtr cam0_ptr = cv_bridge::toCvCopy(cam0_msg, sensor_msgs::image_encodings::MONO8);

@@ -21,19 +21,25 @@ find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(nav_msgs REQUIRED)
+
 
 include_directories(
   include
   src
   ${Eigen3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${nav_msgs_INCLUDE_DIRS}
 )
 
 add_library(vio_lib
   src/core/VioEstimator.cpp
 )
-target_link_libraries(vio_lib PUBLIC
-  ${OpenCV_LIBS}
+ament_target_dependencies(vio_lib
+  rclcpp
+  nav_msgs
+)
+target_link_libraries(vio_lib
   ${OpenCV_LIBRARIES}
   Eigen3::Eigen
 )
@@ -41,6 +47,7 @@ add_executable(vio_node src/VioNode.cpp src/VioNode_node.cpp)
 
 ament_target_dependencies(vio_node
   rclcpp
+  tf2_ros
   std_msgs
   ament_index_cpp
   sensor_msgs
@@ -48,7 +55,7 @@ ament_target_dependencies(vio_node
   message_filters
   rosbag2_cpp
   geometry_msgs
-
+  nav_msgs
 )
 
 target_link_libraries(vio_node
