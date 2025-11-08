@@ -8,9 +8,18 @@ VioEstimator::VioEstimator() :
     vel(Eigen::Vector3d::Zero()),
     R_t(Eigen::Matrix3d::Identity()),
     b_a(Eigen::Vector3d::Zero()),
-    b_g(Eigen::Vector3d::Zero())
+    b_g(Eigen::Vector3d::Zero()),
+    cam0_proj_mat(cv::Mat::zeros(3,4,CV_64F)),
+    cam1_proj_mat(cv::Mat::zeros(3,4,CV_64F))
 {}
 VioEstimator::~VioEstimator(){}
+
+void VioEstimator::setCalibration(const cv::Mat& P0, const cv::Mat& P1)
+{
+    P0.copyTo(cam0_proj_mat);
+    P1.copyTo(cam1_proj_mat);
+}
+
 /**
  * @brief input stereo imgs and calls featureTracker
  */
@@ -29,6 +38,9 @@ cv::Mat VioEstimator::trackImage(double curr_time, const cv::Mat& img0, const cv
     cv::cvtColor(img0, BGR_img, cv::COLOR_GRAY2BGR);
     cv::Mat right_img = img1;
     FeatureStats current_stats;
+
+    //clear the prev 3d pts
+    m_world_pts.clear();
 
     if (is_first_frame)
     {
@@ -69,28 +81,94 @@ cv::Mat VioEstimator::trackImage(double curr_time, const cv::Mat& img0, const cv
         }
     }
 
-    //clean up points that were lost
-    std::vector<cv::Point2f> surviving_pts;
+    std::vector<cv::Point2f> surviving_pts_left;
     std::vector<int> surviving_ids;
     std::vector<int> surviving_track_cnt;
 
     for (size_t i = 0; i < status.size(); i++)
     {
         if (status[i]) {
-            surviving_pts.push_back(next_pts[i]);
+            surviving_pts_left.push_back(next_pts[i]);
             surviving_ids.push_back(obj.ids[i]);
             surviving_track_cnt.push_back(obj.track_cnt[i] + 1);
         }
     }
-    obj.curr_pts = surviving_pts;
-    obj.ids = surviving_ids;
-    obj.track_cnt = surviving_track_cnt;
+    std::vector<cv::Point2f> surviving_pts_right;
+    std::vector<uchar> stereo_status;
+
+    // stereo optical flow: left img to right img
+    cv::calcOpticalFlowPyrLK(
+        img0, // prev_img? img0?
+        right_img,
+        surviving_pts_left,
+        surviving_pts_right,
+        stereo_status,
+        err
+    );
+
+    std::vector<cv::Point2f> final_survivor_pts;
+    std::vector<int> final_survivor_ids;
+    std::vector<int> final_survivor_track_cnt;
+    
+    std::vector<cv::Point2f> triangulated_pts_left;
+    std::vector<cv::Point2f> triangulated_pts_right;
+
+    std::vector<cv::Point3f> points_3d; // store 3d pts from triangulation
+
+
+    for (size_t i = 0; i < stereo_status.size(); i++)
+    {
+        if(stereo_status[i])
+        {
+            // this pts exist in img0, img1
+            final_survivor_pts.push_back(surviving_pts_left[i]);
+            final_survivor_ids.push_back(surviving_ids[i]);
+            final_survivor_track_cnt.push_back(surviving_track_cnt[i]);
+
+            //triangulation here or outside? option 1
+            triangulated_pts_left.push_back(surviving_pts_left[i]);
+            triangulated_pts_right.push_back(surviving_pts_right[i]);
+        }
+    }
+    // triangulation here? option 2
+    if (!triangulated_pts_left.empty())
+    {
+        //output 4d matrix
+        cv::Mat pts_4d;
+        cv::triangulatePoints(
+            cam0_proj_mat,
+            cam1_proj_mat, // 3x4 projection matrices
+            triangulated_pts_left,
+            triangulated_pts_right,
+            pts_4d // 4x4 output matrix
+        );
+        //convert 4D -> 3D by deviding by w
+        for (int i = 0; i < pts_4d.cols; i++)
+        {
+            cv::Mat pt_4d = pts_4d.col(i);
+            float w = pt_4d.at<float>(3,0); // get w
+            if(std::abs(w) > 1e-6)
+            {
+                cv::Point3f pt_3d(
+                    pt_4d.at<float>(0,0)/w,
+                    pt_4d.at<float>(1,0)/w,
+                    pt_4d.at<float>(2,0)/w
+                );
+                m_world_pts.push_back(pt_3d);
+            }
+        }
+    }
+
+    obj.curr_pts = final_survivor_pts;
+    obj.ids = final_survivor_ids;
+    obj.track_cnt = final_survivor_track_cnt;
 
     // 4. Filter survivors and then add new features (which will be drawn in blue)
     setMask(img0);
     points_before_add = obj.curr_pts.size();
     detectAndAdd(img0, BGR_img);
     current_stats.blue_count = obj.curr_pts.size() - points_before_add; // count BLUE
+    //surviving pts are compared with right detection results.
 
     // 5. Update state for the next cycle
     prev_img = img0.clone();
@@ -178,6 +256,10 @@ void VioEstimator::integrateIMU(double t, const Eigen::Vector3d &linearAccel, co
     if (!is_imu_initialized)
     {
         // first frame processing
+        Eigen::Vector3d measured_accel_norm = linearAccel.normalized();
+        Eigen::Vector3d world_gravity_norm = g.normalized();
+        quat = Eigen::Quaterniond::FromTwoVectors(measured_accel_norm, world_gravity_norm);
+        R_t = quat.toRotationMatrix();
         latest_t = t;
         is_imu_initialized = true;
         return;
@@ -192,16 +274,11 @@ void VioEstimator::integrateIMU(double t, const Eigen::Vector3d &linearAccel, co
     Eigen::AngleAxisd angle_axis(angle, axis);
     Eigen::Quaterniond delta_q(angle_axis);
     //calculate orientation
-    // quat = quat @ Eigen::Quaterniond::exp(0.5 * (w_t - b_g) * delta_t);
     quat  = (quat * delta_q).normalized();
     R_t = quat.toRotationMatrix();
-
     Eigen::Vector3d a_world = R_t * unbiased_accel - g;
-
     //calculate position
     pos = pos + vel*delta_t + 0.5 * a_world * (delta_t) * (delta_t);
-
     //calculate velocity
     vel = vel + a_world * delta_t;
-    
 }

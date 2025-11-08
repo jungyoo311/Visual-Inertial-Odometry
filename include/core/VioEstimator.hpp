@@ -39,6 +39,8 @@ class VioEstimator
         Eigen::Vector3d getPosition() const { return pos; }
         Eigen::Quaterniond getOrientation() const { return quat; }
         Eigen::Vector3d getVelocity() const { return vel; }
+        void setCalibration(const cv::Mat& P0, const cv::Mat& P1);
+        const std::vector<cv::Point3f>& getWorldPoints() const { return m_world_pts; }
     private:
         int inputImageCnt;
         double prev_time;
@@ -58,6 +60,11 @@ class VioEstimator
         int n_id = 0;
         bool is_first_frame = true;
         std::vector<FeatureStats> stats_history;
+
+        //triangulation parameters
+        cv::Mat cam0_proj_mat;
+        cv::Mat cam1_proj_mat;
+        std::vector<cv::Point3f> m_world_pts; //3D point clouds
         // usage for imu integration stage 2: imu preintegration
         // std::queue<Eigen::Vector3d> accBuf;
         // std::queue<Eigen::Vector3d> gyrBuf;

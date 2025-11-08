@@ -6,6 +6,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <nav_msgs/msg/path.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/transform_stamped.h>
@@ -14,6 +15,9 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include "std_msgs/msg/int32.hpp"
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/point_field.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 
 // STD headers
 #include <queue>
@@ -56,8 +60,11 @@ class VioNode : public rclcpp::Node
         rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr red_dots_pub_;
 
         rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_odometry_;
+        rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pub_path_;
+        rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_pointcloud_;
 
         rclcpp::TimerBase::SharedPtr pub_timer;
+        nav_msgs::msg::Path path_msg_;
         std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
         // stereo img synchronizer
         std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image, sensor_msgs::msg::Imu>>> sync;
@@ -78,7 +85,6 @@ class VioNode : public rclcpp::Node
         queue<pair<double, Eigen::Vector3d>> gyrBuf;
 
         void setPubSub();
-
         void setParams();
 
         /**
@@ -91,7 +97,7 @@ class VioNode : public rclcpp::Node
         /**
          * @brief Put IMU info and push them into a queue(buffer)
         */
-        void imu0_callback(const sensor_msgs::msg::Imu::SharedPtr msg);
+        void imu0_callback(const sensor_msgs::msg::Imu::ConstSharedPtr msg);
 };
 
 #endif
